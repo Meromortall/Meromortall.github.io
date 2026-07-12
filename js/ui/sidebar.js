@@ -48,8 +48,9 @@ class SidebarManager {
             case 'missions': MissionsUI.render(contentArea); break;
             case 'shop': ShopUI.render(contentArea); break;
             case 'challenges': ChallengesUI.render(contentArea); break;
-            case 'character': CharacterUI.render(contentArea); break;
             case 'analytics': AnalyticsUI.render(contentArea); break;
+            case 'diary': DiaryUI.render(contentArea); break;
+            case 'character': CharacterUI.render(contentArea); break;
             case 'config': ConfigUI.render(contentArea); break;
         }
         

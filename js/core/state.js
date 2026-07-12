@@ -14,6 +14,7 @@ class GameState {
             surpriseMission: null,
             surpriseMissionCompleted: false,
             streakBonusGiven: {},
+            freeMissions: {},
             pointBalances: [],
             classXP: { guerreiro: 0, mago: 0, arquiteto: 0, druida: 0 },
             achievements: {},
@@ -58,6 +59,7 @@ class GameState {
                 activeInvestments: Array.isArray(parsed.activeInvestments) ? parsed.activeInvestments : [],
                 missionHistory: parsed.missionHistory || {},
                 dailyPointsHistory: parsed.dailyPointsHistory || {},
+                freeMissions: parsed.freeMissions || {},
             };
         } catch (e) {
             console.error('Erro ao carregar:', e);
@@ -83,7 +85,7 @@ class GameState {
 
     initDay() {
         const today = this.getToday();
-        if (this.state.lastActiveDate === today) return;
+        if (this.state.lastActiveDate === today) return;  // ✅ CORRIGIDO: sem duplicação
 
         // Atualizar streak
         if (this.state.lastActiveDate) {
@@ -100,7 +102,8 @@ class GameState {
             }
         }
 
-        this.state.completedMissions[today] = [];
+        this.state.completedMissions[today] = [];        // ✅ CORRIGIDO: sem duplicação
+        this.state.freeMissions[today] = {};
         this.state.surpriseMission = null;
         this.state.surpriseMissionCompleted = false;
         this.state.gachaMultiplier = null;
@@ -131,22 +134,23 @@ class GameState {
         const mission = ALL_MISSIONS.find(m => m.id === missionId);
         if (!mission) return { added: false, points: 0 };
 
+        // ✅ CORRIGIDO: usar basePoints com fallback
+        const missionPoints = mission.basePoints || mission.points || 0;
         const index = this.state.completedMissions[today].indexOf(missionId);
 
         if (index === -1) {
-            // Completar missão
             this.state.completedMissions[today].push(missionId);
 
-            let points = mission.points;
+            let points = missionPoints;
             const multiplier = this.getMissionMultiplier();
-            if (multiplier > 1) points *= multiplier;
+            if (multiplier > 1) points = Math.floor(points * multiplier);
 
             const className = MISSION_CLASS_MAP[missionId];
             if (className) {
                 const classLevel = this.getClassLevel(className);
                 const bonus = CLASSES[className].bonus[classLevel];
                 if (bonus?.apply) points = bonus.apply(points);
-                this.state.classXP[className] = (this.state.classXP[className] || 0) + mission.points;
+                this.state.classXP[className] = (this.state.classXP[className] || 0) + missionPoints;
             }
 
             this.points.add(points, 'daily');
@@ -157,11 +161,47 @@ class GameState {
             this.checkAchievements();
             return { added: true, points };
         } else {
-            // Desmarcar missão
             this.state.completedMissions[today].splice(index, 1);
-            this.points.remove(mission.points);
-            return { added: false, points: mission.points };
+            this.points.remove(missionPoints);
+            return { added: false, points: missionPoints };
         }
+    }
+
+    repeatMission(missionId) {
+        const today = this.getToday();
+        this.state.freeMissions[today] = this.state.freeMissions[today] || {};
+        this.state.freeMissions[today][missionId] = (this.state.freeMissions[today][missionId] || 0) + 1;
+
+        const mission = ALL_MISSIONS.find(m => m.id === missionId);
+        if (!mission) return { added: false, points: 0, count: 0 };
+
+        const missionPoints = mission.basePoints || mission.points || 0;
+        
+        // ✅ CORRIGIDO: mínimo de 1 ponto SEMPRE
+        let points = Math.max(1, Math.floor(missionPoints * 0.5));
+        
+        const multiplier = this.getMissionMultiplier();
+        if (multiplier > 1) points = Math.max(1, Math.floor(points * multiplier));
+
+        const className = MISSION_CLASS_MAP[missionId];
+        if (className) {
+            const classLevel = this.getClassLevel(className);
+            const bonus = CLASSES[className].bonus[classLevel];
+            if (bonus?.apply) points = bonus.apply(points);
+            // ✅ Garantir mínimo mesmo após bônus
+            points = Math.max(1, points);
+            this.state.classXP[className] = (this.state.classXP[className] || 0) + Math.max(1, Math.ceil(missionPoints * 0.5));
+        }
+
+        this.points.add(points, 'free');
+        this.updateAchievementStats(missionId);
+        this.updateBossProgress();
+        this.updateAnalytics();
+        this.updateChallenges();
+        this.checkAchievements();
+        
+        const count = this.state.freeMissions[today][missionId];
+        return { added: true, points, count };
     }
 
     buyItem(itemId) {

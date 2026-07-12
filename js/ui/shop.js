@@ -1,41 +1,101 @@
-// shop.js - Tela da loja
+// shop.js - Loja com abas por nível de esforço
 class ShopUIManager {
+    constructor() {
+        this.currentTier = 'minimal';
+        this.currentCategory = 'all';
+    }
+
     render(container) {
         const available = State.points.getAvailable();
         const discount = State.getDiscount();
-        const expiring = State.points.getExpiring();
 
         let html = '';
 
-        // Alerta de desconto
-        if (discount < 1) {
+        // Card de pontos disponíveis
+        html += `
+            <div class="glass-card" style="text-align: center; margin-bottom: 16px;">
+                <div style="font-size: var(--font-xs); color: var(--text-muted);">💰 Pontos Disponíveis</div>
+                <div style="font-size: var(--font-2xl); font-weight: 700; color: var(--gold);">${available}</div>
+                ${discount < 1 ? `<span class="badge badge-success" style="margin-top: 4px;">🏷️ ${Math.round((1 - discount) * 100)}% off</span>` : ''}
+            </div>
+        `;
+
+        // Abas de Esforço
+        html += '<div class="tabs-container" style="display: flex; gap: 6px; margin-bottom: 12px; overflow-x: auto;">';
+        Object.entries(CONFIG.SHOP_TIERS).forEach(([key, tier]) => {
+            const isActive = this.currentTier === key;
             html += `
-                <div class="glass-card" style="text-align: center; margin-bottom: 16px; border-color: var(--success);">
-                    <div style="font-size: 28px;">🏷️</div>
-                    <div style="color: var(--success); font-weight: 700;">
-                        ${Math.round((1 - discount) * 100)}% de desconto ativo!
-                    </div>
+                <div class="tab-pill ${isActive ? 'active' : ''}"
+                     onclick="ShopUI.switchTier('${key}')"
+                     style="
+                         padding: 8px 14px;
+                         border-radius: 20px;
+                         font-size: var(--font-xs);
+                         font-weight: 600;
+                         cursor: pointer;
+                         background: ${isActive ? tier.color + '22' : 'var(--bg-card)'};
+                         color: ${isActive ? tier.color : 'var(--text-muted)'};
+                         border: 1px solid ${isActive ? tier.color : 'var(--border)'};
+                         white-space: nowrap;
+                     ">
+                    ${tier.emoji} ${tier.name}
                 </div>
             `;
+        });
+        html += '</div>';
+
+        // Descrição do tier
+        const currentTier = CONFIG.SHOP_TIERS[this.currentTier];
+        html += `
+            <div style="font-size: var(--font-xs); color: var(--text-muted); margin-bottom: 12px; text-align: center;">
+                ${currentTier.desc}
+            </div>
+        `;
+
+        // Abas de Categoria
+        html += '<div class="tabs-container" style="display: flex; gap: 4px; margin-bottom: 16px; overflow-x: auto;">';
+        html += `
+            <div class="tab-pill ${this.currentCategory === 'all' ? 'active' : ''}"
+                 onclick="ShopUI.switchCategory('all')"
+                 style="padding: 4px 10px; border-radius: 12px; font-size: 10px; cursor: pointer;
+                        background: ${this.currentCategory === 'all' ? 'var(--accent)' : 'var(--bg-card)'};
+                        color: ${this.currentCategory === 'all' ? 'white' : 'var(--text-muted)'};">
+                📦 Todos
+            </div>
+        `;
+        Object.entries(SHOP_CATEGORIES).forEach(([key, cat]) => {
+            html += `
+                <div class="tab-pill ${this.currentCategory === key ? 'active' : ''}"
+                     onclick="ShopUI.switchCategory('${key}')"
+                     style="padding: 4px 10px; border-radius: 12px; font-size: 10px; cursor: pointer;
+                            background: ${this.currentCategory === key ? 'var(--accent-light)' : 'var(--bg-card)'};
+                            color: ${this.currentCategory === key ? 'white' : 'var(--text-muted)'};">
+                    ${cat.emoji} ${cat.name}
+                </div>
+            `;
+        });
+        html += '</div>';
+
+        // Itens da loja
+        let items = SHOP_ITEMS.filter(i => i.tier === this.currentTier);
+        if (this.currentCategory !== 'all') {
+            items = items.filter(i => i.category === this.currentCategory);
         }
 
-        // Tiers da loja
-        Object.entries(SHOP_TIERS).forEach(([tier, tierInfo]) => {
-            const items = SHOP_ITEMS.filter(i => i.tier === parseInt(tier));
-            if (items.length === 0) return;
-
+        if (items.length === 0) {
             html += `
-                <div class="section-title">
-                    <span>${tierInfo.emoji}</span> ${tierInfo.name}
+                <div class="glass-card" style="text-align: center; padding: 40px;">
+                    <div style="font-size: 40px;">🏪</div>
+                    <div style="color: var(--text-muted);">Nenhum item nesta categoria para este tier.</div>
                 </div>
             `;
-
+        } else {
             items.forEach(item => {
                 const finalCost = Math.floor(item.cost * discount);
                 const canAfford = available >= finalCost;
                 const costDisplay = finalCost !== item.cost
-                    ? `<span style="text-decoration: line-through; color: var(--text-muted);">${item.cost}</span> <span style="color: var(--success); font-weight: 700;">${finalCost}pts</span>`
-                    : `<span style="color: var(--warning);">${finalCost}pts</span>`;
+                    ? `<span style="text-decoration: line-through; color: var(--text-muted); font-size: 11px;">${item.cost}</span> <span style="color: var(--success);">${finalCost}pts</span>`
+                    : `<span style="color: ${currentTier.color};">${finalCost}pts</span>`;
 
                 html += `
                     <div class="card" onclick="ShopUI.buyItem('${item.id}')"
@@ -47,43 +107,40 @@ class ShopUIManager {
                                 ${item.hours > 0 ? `⏱️ ${item.hours}h` : '🎉 Consumível'}
                             </div>
                         </div>
-                        <div style="font-size: var(--font-sm); flex-shrink: 0;">${costDisplay}</div>
-                        <button class="btn btn-sm ${canAfford ? 'btn-primary' : 'btn-ghost'}" 
-                                ${!canAfford ? 'disabled' : ''}>
-                            ${canAfford ? 'Comprar' : 'Faltam ' + (finalCost - available)}
-                        </button>
+                        <div style="text-align: right; flex-shrink: 0;">
+                            <div style="font-weight: 700; font-size: var(--font-sm);">${costDisplay}</div>
+                            <button class="btn btn-sm ${canAfford ? 'btn-primary' : 'btn-ghost'}" 
+                                    style="margin-top: 4px; font-size: 10px;"
+                                    ${!canAfford ? 'disabled' : ''}>
+                                ${canAfford ? 'Comprar' : 'Faltam ' + (finalCost - available)}
+                            </button>
+                        </div>
                     </div>
                 `;
             });
-        });
+        }
 
-        // Roleta
+        // Roleta (sempre visível)
         html += `
             <div class="glass-card" style="text-align: center; margin-top: 20px; cursor: pointer;" onclick="ShopUI.rollGacha()">
                 <div style="font-size: 40px;">🎰</div>
                 <div style="font-weight: 700; margin: 8px 0;">Roleta de Sorteios</div>
                 <div style="font-size: var(--font-xs); color: var(--text-muted);">Gaste 5 pontos para girar!</div>
-                <div style="font-size: 10px; color: var(--text-muted); margin-top: 4px;">
-                    💨40% 🪙25% 🏷️15% 💎10% ⚡7% 🎁2% 🌟1%
-                </div>
-                <button class="btn btn-warning btn-block" style="margin-top: 12px;">🎰 Girar Roleta (5pts)</button>
+                <button class="btn btn-warning btn-block" style="margin-top: 12px;">🎰 Girar (5pts)</button>
             </div>
         `;
 
-        // Aviso de pontos expirando
-        if (expiring.today > 0 || expiring.in3Days > 0) {
-            html += `
-                <div class="card" style="margin-top: 16px; border-color: var(--danger); background: rgba(239,68,68,0.05);">
-                    <div style="font-size: var(--font-xs); color: var(--danger);">
-                        ⚠️ <strong>Pontos expirando:</strong><br>
-                        ${expiring.today > 0 ? `• ${expiring.today}pts <strong>hoje</strong><br>` : ''}
-                        ${expiring.in3Days > 0 ? `• ${expiring.in3Days}pts em <strong>3 dias</strong>` : ''}
-                    </div>
-                </div>
-            `;
-        }
-
         container.innerHTML = html;
+    }
+
+    switchTier(tier) {
+        this.currentTier = tier;
+        this.render(document.getElementById('contentArea'));
+    }
+
+    switchCategory(category) {
+        this.currentCategory = category;
+        this.render(document.getElementById('contentArea'));
     }
 
     buyItem(itemId) {
@@ -99,7 +156,7 @@ class ShopUIManager {
 
         if (result.hours > 0) {
             Timer.start(result.hours, result.name);
-            Toast.success(`⏱️ ${result.hours}h de jogo iniciada!`);
+            Toast.success(`⏱️ ${result.hours}h iniciada!`);
         } else {
             Toast.success(`🎉 ${result.name} comprado!`);
         }
