@@ -8,13 +8,13 @@ const MISSION_CATEGORIES = {
         missions: [
             // Treinos Livres (rápidos, 10-30min)
             { id: 'free_s1', emoji: '💪', name: '50 Polichinelos', basePoints: 2, level: 'free' },
-            { id: 'free_s2', emoji: '🤸', name: '50 Flexões na Parede', basePoints: 2, level: 'free' },
-            { id: 'free_s3', emoji: '🦵', name: '30 Agachamentos', basePoints: 2, level: 'free' },
+            { id: 'free_s2', emoji: '🤸', name: '25 Flexões na Parede', basePoints: 2, level: 'free' },
+            { id: 'free_s3', emoji: '🦵', name: '15 Agachamentos', basePoints: 2, level: 'free' },
             { id: 'free_s4', emoji: '🧘', name: 'Alongamento 10min', basePoints: 2, level: 'free' },       // ✅ era 1
             { id: 'free_s5', emoji: '🚶', name: 'Caminhada 15min', basePoints: 2, level: 'free' },
             { id: 'free_s6', emoji: '🏃', name: 'Corrida leve 10min', basePoints: 3, level: 'free' },
-            { id: 'free_s7', emoji: '🦵', name: '20 Afundos', basePoints: 2, level: 'free' },
-            { id: 'free_s8', emoji: '💪', name: '30 seg Prancha', basePoints: 2, level: 'free' },         // ✅ era 1
+            { id: 'free_s7', emoji: '🦵', name: '15 Afundos', basePoints: 2, level: 'free' },
+            { id: 'free_s8', emoji: '💪', name: '20 seg Prancha', basePoints: 2, level: 'free' },         // ✅ era 1
             
             // Treinos Diários (planejados, 1h-1h30)
             { id: 'daily_s1', emoji: '💪', name: '100 Polichinelos + 100 Flexões', basePoints: 5, level: 'daily' },
